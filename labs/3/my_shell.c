@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/wait.h>
 
 #define MAX_INPUT_SIZE 1024
 #define MAX_TOKEN_SIZE 64
@@ -48,16 +49,36 @@ int main(int argc, char* argv[]) {
 		printf("$ ");
 		scanf("%[^\n]", line);
 		getchar();
-
-		printf("Command entered: %s (remove this debug output later)\n", line);
 		/* END: TAKING INPUT */
 
 		line[strlen(line)] = '\n'; //terminate with new line
 		tokens = tokenize(line);
-   
-		//do whatever you want with the commands, here we just print them
-		for (i = 0; tokens[i] != NULL; i++) {
-			printf("found token %s (remove this debug output later)\n", tokens[i]);
+
+		// Check if empty string or value we cannot accessed was entered
+		// Prevents empty string or blank character segfault error
+		if (tokens[0] == NULL || strlen(tokens[0]) == 0) {
+			continue;
+		}
+
+		// Check for 'cd' command
+		if (strcmp(tokens[0], "cd") == 0) {
+			int chdir_val = chdir(tokens[1]);
+			if (chdir_val < 0) {
+				printf("my_shell: No such directory\n");
+			}
+		} else {
+			int rc = fork();
+			if (rc < 0) {
+				fprintf(stderr, "fork failed\n");
+				exit(1);
+			} else if (rc == 0) {
+				execvp(tokens[0], tokens);
+				// Following doesn't get executed unless the previous results in an error
+				perror("my_shell");
+				exit(1);
+			} else {
+				wait(NULL);
+			}
 		}
 
 		// Freeing the allocated memory	
